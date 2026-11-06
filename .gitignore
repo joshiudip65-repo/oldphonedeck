@@ -1,0 +1,23 @@
+# Build artifacts
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+*.apk
+*.iml
+
+# Compiled helper binary (build from mediakey.m)
+mediakey
+
+# Runtime state / caches / logs
+.iconcache/
+.transport
+.phone_ip
+*.log
+
+# macOS
+.DS_Store
+
+# Your real config (copy from config.example.json)
+config.json

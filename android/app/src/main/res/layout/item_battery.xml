@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="3dp">
+
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/text"
+        android:textSize="12sp" />
+
+    <FrameLayout
+        android:id="@+id/meter"
+        android:layout_width="44dp"
+        android:layout_height="7dp"
+        android:layout_marginHorizontal="8dp"
+        android:background="@drawable/meter_track">
+
+        <View
+            android:id="@+id/meterFill"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/meter_fill" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvPct"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="34dp"
+        android:gravity="end"
+        android:textColor="@color/text"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+</LinearLayout>

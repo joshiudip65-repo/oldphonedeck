@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>OldPhoneDeck</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="deck">
+  <header>
+    <div class="clock"><span id="time">--:--</span><small id="date">—</small></div>
+    <div class="host"><span class="dot"></span><span id="host">Mac</span></div>
+  </header>
+
+  <main>
+    <section class="grid" id="buttons"><!-- app buttons injected --></section>
+
+    <aside class="side">
+      <div class="card net">
+        <div class="card-label">INTERNET</div>
+        <div class="net-main"><span class="arrow down">↓</span><b id="down">0.0</b><span class="unit">Mbps</span></div>
+        <div class="net-sub"><span class="arrow up">↑</span><span id="up">0.0</span> Mbps · <span id="ping">— ms</span></div>
+        <svg class="spark" id="spark" viewBox="0 0 160 36" preserveAspectRatio="none"><polyline id="sparkline" points=""/></svg>
+      </div>
+      <div class="card batt">
+        <div class="card-label">BATTERIES</div>
+        <div id="battlist" class="battlist"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer id="player" class="hidden">
+    <div class="art" id="art">🎵</div>
+    <div class="track"><b id="trackname">—</b><small id="artist">—</small>
+      <div class="bar"><i id="progress"></i></div>
+    </div>
+    <div class="controls">
+      <button data-cmd="prev">⏮</button>
+      <button data-cmd="play" id="playbtn">⏯</button>
+      <button data-cmd="next">⏭</button>
+    </div>
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

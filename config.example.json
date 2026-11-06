@@ -1,0 +1,33 @@
+{
+  "_comment": "Copy this to config.json and fill in your own values. target_serial = `adb devices`. phone_ip = the phone's Wi-Fi IP (set a DHCP reservation for stability). dell_url/dashboard_url + the Immich button are optional LAN services — point them at your own hosts or remove.",
+  "port": 8790,
+  "target_serial": "YOUR_PHONE_ADB_SERIAL",
+  "phone_ip": "192.168.1.50",
+  "wireless_port": 5555,
+  "dell_url": "http://192.168.1.100:8765/api",
+  "dashboard_url": "http://192.168.1.100:8765",
+  "buttons": [
+    { "id": "calendar", "label": "Calendar", "icon": "📅", "exec": "open -a 'Google Chrome' 'https://calendar.google.com'", "icon_url": "https://www.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png" },
+    { "id": "claude",   "label": "Claude",   "icon": "✳️", "app": "Claude",        "exec": "open -a Claude" },
+    { "id": "chrome",   "label": "Chrome",   "icon": "🌐", "app": "Google Chrome", "exec": "open -a 'Google Chrome'" },
+    { "id": "immich",   "label": "Immich",   "icon": "🖼️", "exec": "open -a 'Google Chrome' 'http://192.168.1.100:2283'", "icon_url": "https://raw.githubusercontent.com/immich-app/immich/main/design/immich-logo.png" },
+    { "id": "whatsapp", "label": "WhatsApp", "icon": "💬", "app": "WhatsApp",      "exec": "open -a WhatsApp" },
+    { "id": "terminal", "label": "Terminal", "icon": "⌨️", "app": "Terminal",      "exec": "open -a Terminal" },
+    { "id": "spotify",  "label": "Spotify",  "icon": "🎵", "app": "Spotify",       "exec": "open -a Spotify" },
+    { "id": "slack",    "label": "Slack",    "icon": "📣", "app": "Slack",         "exec": "open -a Slack" }
+  ],
+  "touchbar": [
+    { "id": "emoji",      "glyph": "emoji",         "icon": "😀", "nav": "emoji" },
+    { "id": "bright_dn",  "glyph": "brightness_low", "icon": "🔅", "exec": "osascript -e 'tell application \"System Events\" to key code 145'" },
+    { "id": "bright_up",  "glyph": "brightness_high","icon": "🔆", "exec": "osascript -e 'tell application \"System Events\" to key code 144'" },
+    { "id": "vol_dn",     "glyph": "volume_down",   "icon": "🔉", "exec": "osascript -e 'set volume output volume (output volume of (get volume settings) - 10)'" },
+    { "id": "vol_up",     "glyph": "volume_up",     "icon": "🔊", "exec": "osascript -e 'set volume output volume (output volume of (get volume settings) + 10)'" },
+    { "id": "mute",       "glyph": "volume_mute",   "icon": "🔇", "exec": "osascript -e 'set volume output muted (not (output muted of (get volume settings)))'" },
+    { "id": "playpause",  "glyph": "playpause",     "icon": "⏯",  "exec": "\"$HOME/oldphonedeck/media.sh\" play" },
+    { "id": "screenshot", "glyph": "camera",        "icon": "📸", "exec": "screencapture -x \"$HOME/Desktop/Deck-screenshot.png\"" },
+    { "id": "mission",    "glyph": "mission",       "icon": "🖥️", "exec": "open -a 'Mission Control'" },
+    { "id": "apps",       "glyph": "apps",          "icon": "🗂️", "nav": "apps" },
+    { "id": "lock",       "glyph": "lock",          "icon": "🔒", "exec": "osascript -e 'tell application \"System Events\" to keystroke \"q\" using {control down, command down}'" },
+    { "id": "siri",       "glyph": "siri",          "icon": "🔮", "exec": "osascript -e 'tell application \"System Events\" to key code 49 using {command down}'" }
+  ]
+}

@@ -15,6 +15,11 @@ mediakey
 .transport
 .phone_ip
 *.log
+__pycache__/
+*.pyc
+
+# Dev screenshots
+scratch_*.png
 
 # macOS
 .DS_Store

@@ -60,6 +60,16 @@ class MainActivity : AppCompatActivity() {
 
     private val timeFmt = SimpleDateFormat("h:mm", Locale.getDefault())
     private val dateFmt = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault())
+    private val sydFmt = SimpleDateFormat("h:mm a", Locale.getDefault()).apply {
+        timeZone = java.util.TimeZone.getTimeZone("Australia/Sydney")
+    }
+
+    private var activeAppId: String? = null
+
+    // Burn-in guard: this panel already has a dead line, so be gentle on the OLED.
+    private var lastInteract = System.currentTimeMillis()
+    private var dimmed = false
+    private var shiftIdx = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,17 +81,49 @@ class MainActivity : AppCompatActivity() {
         b.btnPrev.setOnClickListener { media("prev", it) }
         b.btnPlay.setOnClickListener { media("play", it) }
         b.btnNext.setOnClickListener { media("next", it) }
+        b.llPylon.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            action("pylon")
+        }
 
         swipe = TwoFingerSwipe(resources.displayMetrics.density,
             onRight = { openDashboard() }, onLeft = { openApps() })
 
         startClock()
         poll()
+        ui.postDelayed(burnGuard, 30_000L)
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        lastInteract = System.currentTimeMillis()
+        if (dimmed) setDim(false)
         swipe.onTouch(ev)
         return super.dispatchTouchEvent(ev)
+    }
+
+    // ---- Burn-in protection: dim after idle, gently shift pixels ----
+
+    private val burnGuard = object : Runnable {
+        override fun run() {
+            val idle = System.currentTimeMillis() - lastInteract
+            if (idle >= 120_000L && !dimmed) setDim(true)
+            shiftIdx = (shiftIdx + 1) % 4
+            val s = dp(3)
+            val (sx, sy) = when (shiftIdx) {
+                1 -> s to s; 3 -> -s to -s; else -> 0 to 0
+            }
+            b.root.translationX = sx.toFloat()
+            b.root.translationY = sy.toFloat()
+            ui.postDelayed(this, 30_000L)
+        }
+    }
+
+    private fun setDim(on: Boolean) {
+        dimmed = on
+        val lp = window.attributes
+        lp.screenBrightness =
+            if (on) 0.1f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = lp
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -107,6 +149,7 @@ class MainActivity : AppCompatActivity() {
                 val now = Date()
                 b.tvTime.text = timeFmt.format(now)
                 b.tvDate.text = dateFmt.format(now).uppercase(Locale.getDefault())
+                b.tvSydney.text = "SYDNEY " + sydFmt.format(now).uppercase(Locale.getDefault())
                 ui.postDelayed(this, 1000)
             }
         }
@@ -131,8 +174,11 @@ class MainActivity : AppCompatActivity() {
         updateConn(o.optString("transport"))
         o.optJSONArray("touchbar")?.let { renderTouchbar(it) }
         renderBatteries(o)
+        renderNetwork(o.optJSONObject("net"))
+        renderPylon(o.optJSONObject("pylon"))
         renderRam(o.optJSONObject("ram"))
         renderPlayer(o.optJSONObject("now_playing"))
+        highlightActiveApp(o.optString("frontmost"))
     }
 
     // ---- Connection status (USB / Wi-Fi with signal) ----
@@ -183,7 +229,8 @@ class MainActivity : AppCompatActivity() {
         gridBuilt = true
         buttons.clear()
         for (i in 0 until arr.length()) buttons.add(arr.getJSONObject(i))
-        val cols = 4
+        // Keep the grid to 2 roomy rows: widen columns as tiles grow (min 4).
+        val cols = maxOf(4, (buttons.size + 1) / 2)
         val rows = (buttons.size + cols - 1) / cols
         val m = dp(5)
         b.grid.removeAllViews()
@@ -254,7 +301,7 @@ class MainActivity : AppCompatActivity() {
         val sig = StringBuilder()
         for (i in 0 until arr.length()) {
             val it = arr.getJSONObject(i)
-            sig.append(if (it.optBoolean("sep")) "|" else it.optString("id")).append(",")
+            sig.append(if (it.optBoolean("sep")) "|" else it.optString("id") + ":" + it.optString("glyph")).append(",")
         }
         if (sig.toString() == touchbarSig) return
         touchbarSig = sig.toString()
@@ -277,7 +324,7 @@ class MainActivity : AppCompatActivity() {
                 ImageView(this).apply {
                     setImageResource(resId)
                     scaleType = ImageView.ScaleType.FIT_CENTER
-                    val p = dp(if (glyph == "siri") 9 else 8)
+                    val p = dp(if (glyph == "siri") 2 else 8)
                     setPadding(p, p, p, p)
                 }
             } else {
@@ -433,6 +480,49 @@ class MainActivity : AppCompatActivity() {
                 width = (b.ramTrack.width * pct / 100.0).toInt()
             }
         }
+    }
+
+    private fun renderNetwork(net: JSONObject?) {
+        if (net == null) return
+        val down = net.optDouble("down", 0.0)
+        val up = net.optDouble("up", 0.0)
+        b.tvNetRate.text = "↓ %.1f   ↑ %.1f Mbps".format(down, up)
+        if (net.isNull("ping")) {
+            b.tvNetPing.text = "— ms"
+            b.tvNetPing.setTextColor(Color.parseColor("#8A8A8E"))
+        } else {
+            val ping = net.optInt("ping")
+            b.tvNetPing.text = "$ping ms"
+            val color = when { ping <= 40 -> "#30D158"; ping <= 100 -> "#FFD60A"; else -> "#FF453A" }
+            b.tvNetPing.setTextColor(Color.parseColor(color))
+        }
+    }
+
+    private fun renderPylon(p: JSONObject?) {
+        if (p == null) { b.llPylon.visibility = View.GONE; return }
+        b.llPylon.visibility = View.VISIBLE
+        val new = p.optInt("new", 0)
+        val onYou = p.optInt("on_you", 0)
+        val open = p.optInt("open", 0)
+        b.tvPylonNew.text = "$new New"
+        b.tvPylonOnYou.text = "$onYou On you"
+        b.tvPylonOnYou.setTextColor(Color.parseColor(if (onYou > 0) "#FFD60A" else "#F2F2F7"))
+        b.tvPylonOpen.text = "$open Open"
+    }
+
+    // Highlight the tile of the Mac app that's currently frontmost.
+    private fun highlightActiveApp(frontmost: String) {
+        if (!gridBuilt) return
+        var newId: String? = null
+        if (frontmost.isNotEmpty()) {
+            for (btn in buttons) {
+                if (btn.optString("app").equals(frontmost, true)) { newId = btn.optString("id"); break }
+            }
+        }
+        if (newId == activeAppId) return
+        activeAppId?.let { cells[it]?.root?.setBackgroundResource(R.drawable.btn_bg) }
+        activeAppId = newId
+        newId?.let { cells[it]?.root?.setBackgroundResource(R.drawable.btn_bg_active) }
     }
 
     private fun renderPlayer(np: JSONObject?) {

@@ -12,8 +12,8 @@
     tools:ignore="HardcodedText">
 
     <FrameLayout
-        android:layout_width="46dp"
-        android:layout_height="46dp">
+        android:layout_width="38dp"
+        android:layout_height="38dp">
 
         <TextView
             android:id="@+id/icon"
@@ -37,7 +37,7 @@
         android:id="@+id/label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:textColor="@color/dim"
         android:textSize="12sp"
         android:textStyle="bold" />

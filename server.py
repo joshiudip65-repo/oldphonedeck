@@ -12,6 +12,12 @@ PORT = int(CONFIG.get("port", 8765))
 BUTTONS = {b["id"]: b for b in CONFIG.get("buttons", [])}
 DELL_URL = CONFIG.get("dell_url")
 
+# Pylon ticket counter: user id from config, token read once from the Keychain.
+PYLON_CFG = CONFIG.get("pylon", {})
+PYLON_USER = PYLON_CFG.get("user_id", "")
+PYLON_WINDOW_DAYS = int(PYLON_CFG.get("window_days", 30))
+PYLON_TOKEN = ""
+
 
 def keystroke_cmd(key, mods=None):
     """Shell command that sends a keystroke to the frontmost Mac app."""
@@ -84,26 +90,76 @@ APP_TOUCHBARS = {
         {"id": "wa_search", "glyph": "search", "icon": "🔍", "exec": keystroke_cmd("f", ["command"])},
         {"id": "wa_new",    "glyph": "pencil", "icon": "✏️", "exec": keystroke_cmd("n", ["command"])},
     ],
+    # Zoom's process name is "zoom.us" when it's frontmost.
+    "zoom.us": [
+        {"id": "zm_mute",  "glyph": "mic",         "icon": "🎙️", "exec": keystroke_cmd("a", ["command", "shift"])},
+        {"id": "zm_video", "glyph": "videocam",    "icon": "📹", "exec": keystroke_cmd("v", ["command", "shift"])},
+        {"id": "zm_share", "glyph": "screenshare", "icon": "🖥️", "exec": keystroke_cmd("s", ["command", "shift"])},
+        {"id": "zm_leave", "glyph": "xmark",       "icon": "✖️", "exec": keystroke_cmd("w", ["command"])},
+    ],
+}
+
+# When Chrome is frontmost on a known site, show site-specific actions instead of
+# the generic Chrome strip. Matched by substring against the active tab's URL.
+# Actions use `open <url>` (safe/reliable) rather than single-key site shortcuts.
+CHROME_SITES = {
+    "atlassian.net": [  # Jira
+        {"id": "jr_create", "glyph": "plus",   "icon": "➕", "exec": "open -a 'Google Chrome' 'https://varicon.atlassian.net/secure/CreateIssue!default.jspa'"},
+        {"id": "jr_mine",   "glyph": "star",   "icon": "⭐", "exec": "open -a 'Google Chrome' 'https://varicon.atlassian.net/issues/?jql=assignee%3DcurrentUser()%20AND%20resolution%3DUnresolved%20ORDER%20BY%20updated%20DESC'"},
+        {"id": "jr_back",   "glyph": "chevron_left", "icon": "◀️", "exec": keystroke_cmd("[", ["command"])},
+        {"id": "jr_reload", "glyph": "reload", "icon": "🔄", "exec": keystroke_cmd("r", ["command"])},
+    ],
+    "mail.google.com": [  # Gmail
+        {"id": "gm_compose", "glyph": "pencil", "icon": "✏️", "exec": "open -a 'Google Chrome' 'https://mail.google.com/mail/?view=cm&fs=1&tf=1'"},
+        {"id": "gm_back",    "glyph": "chevron_left", "icon": "◀️", "exec": keystroke_cmd("[", ["command"])},
+        {"id": "gm_reload",  "glyph": "reload", "icon": "🔄", "exec": keystroke_cmd("r", ["command"])},
+    ],
+    "meet.google.com": [  # Google Meet (shortcuts fire against the focused Meet tab)
+        # Camera (Cmd+E) is omitted — the Claude Chrome extension owns that shortcut.
+        {"id": "gmeet_mute",  "glyph": "mic",   "icon": "🎙️", "exec": keystroke_cmd("d", ["command"])},
+        {"id": "gmeet_hand",  "glyph": "hand",  "icon": "✋", "exec": keystroke_cmd("h", ["command", "control"])},
+        {"id": "gmeet_leave", "glyph": "xmark", "icon": "✖️", "exec": keystroke_cmd("w", ["command"])},
+    ],
+    "app.usepylon.com": [  # Pylon
+        {"id": "py_reload", "glyph": "reload", "icon": "🔄", "exec": keystroke_cmd("r", ["command"])},
+        {"id": "py_back",   "glyph": "chevron_left",  "icon": "◀️", "exec": keystroke_cmd("[", ["command"])},
+        {"id": "py_fwd",    "glyph": "chevron_right", "icon": "▶️", "exec": keystroke_cmd("]", ["command"])},
+        {"id": "py_find",   "glyph": "search", "icon": "🔍", "exec": keystroke_cmd("f", ["command"])},
+    ],
 }
 
 # Everything tappable (deck buttons + every Touch Bar variant) → Mac command registry.
 ACTIONS = {}
 for _b in CONFIG.get("buttons", []) + CONTROL_STRIP:
     ACTIONS[_b["id"]] = _b
-for _lst in APP_TOUCHBARS.values():
+for _lst in list(APP_TOUCHBARS.values()) + list(CHROME_SITES.values()):
     for _b in _lst:
         ACTIONS[_b["id"]] = _b
 
 
-def touchbar_for(app):
-    """Build the Touch Bar for the frontmost app: app controls + divider + control strip."""
-    items = list(APP_TOUCHBARS.get(app, []))
+def touchbar_for(app, playing=False, chrome_url=""):
+    """Build the Touch Bar for the frontmost app: app controls + divider + control strip.
+
+    When Chrome is on a known site, its strip is swapped for site-specific actions.
+    Any play/pause button (glyph "playpause") is swapped to a concrete pause icon
+    while media is playing and a play icon while it's paused/stopped."""
+    app_items = APP_TOUCHBARS.get(app, [])
+    if app == "Google Chrome" and chrome_url:
+        for host, strip in CHROME_SITES.items():
+            if host in chrome_url:
+                app_items = strip
+                break
+    items = list(app_items)
     if items:
         items.append({"sep": True})
     items += CONTROL_STRIP
     out = []
     for it in items:
-        out.append({k: it[k] for k in ("id", "icon", "glyph", "nav", "sep", "label") if k in it})
+        d = {k: it[k] for k in ("id", "icon", "glyph", "nav", "sep", "label") if k in it}
+        if d.get("glyph") == "playpause":
+            d["glyph"] = "pause" if playing else "play"
+            d["icon"] = "⏸" if playing else "▶️"
+        out.append(d)
     return out
 ICON_DIR = os.path.join(ROOT, ".iconcache")
 os.makedirs(ICON_DIR, exist_ok=True)
@@ -116,13 +172,46 @@ STATE = {
     "mac_name": "", "battery": None, "charging": False, "time_left": "",
     "net": {"down": 0.0, "up": 0.0, "ping": None},
     "bt": [], "now_playing": None, "frontmost": "", "ram": None,
+    # Optimistic play state for players we can't read (e.g. browser video on macOS 27).
+    "assumed_playing": False,
+    "pylon": None,  # {"new": N, "on_you": M, "open": K}
+    "chrome_url": "",  # active Chrome tab URL (only read while Chrome is frontmost)
 }
 LOCK = threading.Lock()
+
+
+def effective_playing():
+    """True if media is playing. Uses Spotify/Music real state when available,
+    otherwise falls back to the optimistic toggle (browser video)."""
+    with LOCK:
+        np = STATE.get("now_playing")
+        if np is not None:
+            return bool(np.get("playing"))
+        return bool(STATE.get("assumed_playing"))
+
+
+def register_playpause():
+    """Called right after a play/pause press. Re-reads the real player if one is
+    running (Spotify/Music), else flips the optimistic browser toggle."""
+    spot = read_spotify()
+    with LOCK:
+        if spot is not None:
+            STATE["now_playing"] = spot
+            STATE["assumed_playing"] = bool(spot.get("playing"))
+        else:
+            STATE["assumed_playing"] = not STATE.get("assumed_playing", False)
 
 
 def frontmost_app():
     return sh("osascript -e " + json.dumps(
         'tell application "System Events" to get name of first application process whose frontmost is true'))
+
+
+def read_chrome_url():
+    """Active tab URL of the front Chrome window (empty if none / not permitted)."""
+    return sh("osascript -e " + json.dumps(
+        'tell application "Google Chrome" to if (count of windows) > 0 '
+        'then return URL of active tab of front window'))
 
 
 def read_ram():
@@ -346,6 +435,64 @@ def build_devices():
     return res[:5]
 
 
+def read_pylon():
+    """Count tickets assigned to Udip over the recent window: open (not closed)
+    and 'waiting on you'. Paginates the issues list and filters client-side
+    (the API has no assignee filter). Returns {"waiting": N, "open": M} or None."""
+    if not (PYLON_TOKEN and PYLON_USER):
+        return None
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=PYLON_WINDOW_DAYS)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    base = ("https://api.usepylon.com/issues"
+            f"?start_time={start.strftime(fmt)}&end_time={now.strftime(fmt)}&limit=100")
+    hdr = json.dumps("Authorization: Bearer " + PYLON_TOKEN)
+    new_all = on_you = openc = 0
+    cursor = None
+    for _ in range(25):  # cap pages so a refresh can't run away
+        url = base + (f"&cursor={cursor}" if cursor else "")
+        out = sh(f"curl -s --max-time 15 -H {hdr} {json.dumps(url)}", timeout=20)
+        try:
+            d = json.loads(out)
+        except Exception:
+            break
+        for i in d.get("data", []):
+            st = i.get("state")
+            a = i.get("assignee") or {}
+            aid = a.get("id") if isinstance(a, dict) else None
+            if st == "new":
+                new_all += 1          # whole incoming queue, regardless of assignee
+            if aid != PYLON_USER:
+                continue
+            if st == "closed":
+                continue
+            openc += 1                # everything of mine that isn't closed
+            if st == "waiting_on_you":
+                on_you += 1           # my tickets where the ball is in my court
+        pg = d.get("pagination") or {}
+        if not pg.get("has_next_page"):
+            break
+        cursor = pg.get("cursor")
+    return {"new": new_all, "on_you": on_you, "open": openc}
+
+
+def pylon_collector():
+    """Refresh the Pylon ticket counts every ~5 minutes (own thread; the scan
+    makes many sequential API calls and must not stall the 2s state loop)."""
+    global PYLON_TOKEN
+    PYLON_TOKEN = sh("security find-generic-password -s pylon-api-token -w") or ""
+    while True:
+        try:
+            counts = read_pylon()
+        except Exception:
+            counts = None
+        if counts is not None:
+            with LOCK:
+                STATE["pylon"] = counts
+        time.sleep(300)
+
+
 def collector():
     iface = default_iface()
     name = sh("scutil --get ComputerName") or "Mac"
@@ -380,6 +527,7 @@ def collector():
             bt = build_devices()
 
         front = frontmost_app()
+        chrome_url = read_chrome_url() if front == "Google Chrome" else ""
         ram = STATE["ram"]
         if tick % 2 == 0:  # RAM ~every 4s
             ram = read_ram()
@@ -387,7 +535,8 @@ def collector():
         with LOCK:
             STATE.update({"battery": pct, "charging": charging, "time_left": left,
                           "net": {"down": round(down, 1), "up": round(up, 1), "ping": ping},
-                          "now_playing": spot, "bt": bt, "frontmost": front, "ram": ram})
+                          "now_playing": spot, "bt": bt, "frontmost": front, "ram": ram,
+                          "chrome_url": chrome_url})
         time.sleep(2)
 
 
@@ -440,7 +589,8 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 payload = dict(STATE)
             payload["buttons"] = CONFIG.get("buttons", [])
-            payload["touchbar"] = touchbar_for(payload.get("frontmost", ""))
+            payload["touchbar"] = touchbar_for(payload.get("frontmost", ""), effective_playing(),
+                                               payload.get("chrome_url", ""))
             payload["dashboard_url"] = CONFIG.get("dashboard_url", "")
             try:
                 payload["transport"] = open(os.path.join(ROOT, ".transport")).read().strip()
@@ -485,7 +635,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/action":
             act = ACTIONS.get(body.get("id"))
             if act and act.get("exec"):
-                subprocess.Popen(act["exec"], shell=True)
+                if act.get("glyph") == "playpause":
+                    # run synchronously so we can read back the new play state at once
+                    try:
+                        subprocess.run(act["exec"], shell=True, timeout=6)
+                    except Exception:
+                        pass
+                    register_playpause()
+                else:
+                    subprocess.Popen(act["exec"], shell=True)
                 return self._send(200, {"ok": True})
             return self._send(400, {"ok": False})
         if self.path == "/api/type":
@@ -506,7 +664,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True})
             return self._send(400, {"ok": False})
         if self.path == "/api/media":
-            return self._send(200, {"ok": media(body.get("cmd", ""))})
+            cmd = body.get("cmd", "")
+            ok = media(cmd)
+            if ok and cmd == "play":
+                register_playpause()
+            return self._send(200, {"ok": ok})
         if self.path == "/api/push":
             name = body.get("source") or body.get("name")
             pct = body.get("pct")
@@ -519,6 +681,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     threading.Thread(target=collector, daemon=True).start()
+    threading.Thread(target=pylon_collector, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     print(f"OldPhoneDeck serving on http://127.0.0.1:{PORT}")
     srv.serve_forever()

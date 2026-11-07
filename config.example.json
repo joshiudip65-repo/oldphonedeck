@@ -1,11 +1,12 @@
 {
-  "_comment": "Copy this to config.json and fill in your own values. target_serial = `adb devices`. phone_ip = the phone's Wi-Fi IP (set a DHCP reservation for stability). dell_url/dashboard_url + the Immich button are optional LAN services — point them at your own hosts or remove.",
+  "_comment": "Copy this to config.json and fill in your own values. target_serial = `adb devices`. phone_ip = the phone's Wi-Fi IP (set a DHCP reservation for stability). dell_url/dashboard_url + the Immich button are optional LAN services — point them at your own hosts or remove. pylon is optional: set user_id to show a 'New / On you / Open' ticket counter; the API token is read from the macOS Keychain item named 'pylon-api-token' (never stored here).",
   "port": 8790,
   "target_serial": "YOUR_PHONE_ADB_SERIAL",
   "phone_ip": "192.168.1.50",
   "wireless_port": 5555,
   "dell_url": "http://192.168.1.100:8765/api",
   "dashboard_url": "http://192.168.1.100:8765",
+  "pylon": { "user_id": "YOUR_PYLON_USER_ID", "window_days": 30 },
   "buttons": [
     { "id": "calendar", "label": "Calendar", "icon": "📅", "exec": "open -a 'Google Chrome' 'https://calendar.google.com'", "icon_url": "https://www.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png" },
     { "id": "claude",   "label": "Claude",   "icon": "✳️", "app": "Claude",        "exec": "open -a Claude" },
@@ -28,6 +29,6 @@
     { "id": "mission",    "glyph": "mission",       "icon": "🖥️", "exec": "open -a 'Mission Control'" },
     { "id": "apps",       "glyph": "apps",          "icon": "🗂️", "nav": "apps" },
     { "id": "lock",       "glyph": "lock",          "icon": "🔒", "exec": "osascript -e 'tell application \"System Events\" to keystroke \"q\" using {control down, command down}'" },
-    { "id": "siri",       "glyph": "siri",          "icon": "🔮", "exec": "osascript -e 'tell application \"System Events\" to key code 49 using {command down}'" }
+    { "id": "siri",       "glyph": "siri",          "icon": "🔮", "exec": "open -a Siri" }
   ]
 }
